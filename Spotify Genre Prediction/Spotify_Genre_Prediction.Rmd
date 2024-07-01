@@ -1,0 +1,797 @@
+---
+title: "Final Report"
+author: "Pramugdha Chowdhury"
+date: "2023-11-16"
+output: pdf_document
+---
+
+# Executive Summary
+Spotify, an audio streaming and media services provider with over 365 million monthly active users, including 165 million paying subscribers are interested in predicting which genre a song belongs to in order to enhance their customer’s experience. By doing so, Spotify producers aims to ultimately remain the best music streaming service available. This report essentially does an analysis on the Spotify dataset which contains 32,833 songs with 23 variables. There are a few factors such as song release year, speechiness, danceability, and tempo which have been used to predict the genres of the songs. Besides the factors mentioned above, factors such as genre-specific popularity, speechiness, and track popularity over time have also been investigated to see how these variables influence the song genre prediction. Followingly, three models namely Linear Discriminant Analysis, K-Nearest Neighbors, and Random Forest are used to predict the output. Metrics such as Accuracy, AUC, sensitivity, and specificity are used to further analyse the results and determine the best fit. To further analysis the model, PCA which is a dimensional reduction algorithm, particularly useful when dealing with high-dimensional datasets by reducing the number of features while retaining most of the information is done to see if it indeed does  lead to simpler models and improved model interpretability. In this case, the dataset is found to be not excessively high-dimensional, and hence PCA may not be necessary and can be skipped. After the analysis, it is found that doing PCA did not affect the predicted results by much. Furthermore, out of the three models mentioned earlier, the Random Forest Model is recommended for the prediction model as it is the best performing model for genre prediction. For future work recommendations, fittings using other machine learning algorithms such as logistic regression and support vector machines are recommended. 
+
+# Methods
+This report is implemeted using the Rstudio platform using the 4.3.1 version, an integrated development environment for the R programming language. The spotify dataset contains information about different songs from different playlists on Spotify. To be specific, it contains 32,833 songs with 23 features. There are a total of 28,356 unique tracks, about 10,693 artists, a total of 22,545 albums, 471 playlists, about 6 genres and lastly about 24 sub genres in the Spotify dataset.
+
+To further add on, the features namely are **track_id**( a unique song ID), **track_name**(the song name), **track_artist**(the song artist),
+**track_popularity**(a number from 0 to 100 indicating popularity where the higher the value, the more popular the song),
+**track_album_id** (a unique ID for the album), **track_album_name**(name of the album), **track_album_release_date**(the date the album was released), **playlist_name** (name of the playlist the song was taken from), **playlist_ID**(unique ID for the playlist), **playlist_genre**(genre of the playlist which is the outcome variable of interest), **playlist_subgenre**(the subgenre of the playlist),**danceability**(a value from 0 to 1 describing how danceable a song is where the higher the value, the more danceable the song), **energy**(a measure from 0.0 to 1.0 and represents a perceptual measure of intensity and activity where the higher the value, the more energetic the song), **key** ( an integer value describing the overall pitch of the song where the integers map to each increase in pitch; undetected pitch maps to -1), **loudness**(a value typically ranging from -60 to 0 decibels describing the overall loudness of the track),**mode**(a value from 0 to 1 describing the scale the melodic content is derived from where  value of 0 is done in minor, a value of 1 is done in major), **speechiness**(a value from 0 to 1 describing how “speechy” the track is where higher values indicate spoken-word tracks), **acousticness**( a value from 0 to 1 describing how acoustic the track is where higher values mean more acoustic), **instrumentalness** (a value from 0 to 1 describing how instrumental the song is where higher values imply fewer vocals in the track), **liveness**(detects how “live” the music is for example whether it is a studio recording or a live recording), **valence**(a measure from 0 to 1 describing how positive the song is where a higher value means more positive),**tempo**(the tempo of the song in beats per minute) and the **duration_ms**(the duration of the song in milliseconds).
+
+
+This analysis serves a purpose to create several models to predict the genre of a song using appropriate features. The few main features that have been pointed out are the year which the song has been released in, how “speechy” the song is, how “danceable” the song is and the tempo of the song. However, these are not the only features the models have been trained on as all the other features have influences on the prediction of the
+genre of the playlist a song belongs. The main idea here is to train the models to identify the playlist_genre based on the songs.
+
+To start off the training process, the dataset needed to be cleaned to ensure that the data used for the model training is consistent. It is also essential because it can help remove any observations that may have been incorrectly put. Firstly, the features such as the track_name,track_artist and track_album_name all contain 5 missing values. Hence, it had been decided to remove the observations of the missing values first as this further reduces the dimensions of the dataset. Followingly, the minimum and maximum ranges of the variables danceability, energy, key, loudness, mode, speechiness, acousticness, instrumentalness, liveness, valence, tempo, duration_ms are checked to ensure they fall within the expected ranges.  The song duration in the duration_ms feature had minimum duration_ms of 4000 miliseconds which is 4s. Hence, the anamoly is removed.The loudness ranged from -46.448 to 1.275 which is past the 0 decibels, and hence the outlier is removed.
+
+Moving on, after the checks, a feature selection is done where features such as track ID, playlist_id and all are dropped as they are assumed to not influence the prediction of the model by much. By the end, there are 10 independent variables along with the  four variables which the founders are interested in. The feature track_album_release_data is also manipulated to only have the years which the song is released in rather than the entire month and days (‘yyyy-mm-dd’) date format. The appropriate variables are converted to categorical variables as needed. Moreover, due to computation limitations, the dataset is sliced and reduced to containing 1000 songs per genre.
+
+Subsequently, in the exploratory data analysis, bivariate summaries are used to observe the relationship between the features. Boxplots are used for category factors versus numerical variables, and scatter plots are used for numerical variables versus numerical variables.
+
+Next, a Principle Component Analysis is done. The PCA is a dimentionality reduction technique which helps remove features that have little to no impact on the genre of the song. After the PCA process,it is determined that the process is not needed as around 90% of the variance is retained with approximately 11 principal components. Only the first 11 principal components retains a significant amount of variance hence from 14 variables, the dimensions has been reduced to only 11 variables. This shows that the reduction is lesser than expected. To further analyse, the 11 components from the PCA had still been used for the training process, but the result obtained in the end did not have much of a difference when compared to the case where PCA was not used. Thus, PCA is generally more useful when there are higher dimensions involved.  Hence with such a minimal drop, there is not much of a need to do a PCA as the final output would not make much of a difference. Moreover, another reason why PCA analysis is not implemented for the final output is, while PCA does decreases dimensionality, the interpretability suffers as a result. The principle components themselves might not have clear human-interpretable meanings making it hard to understand and which thus increases unnecessary complexity.
+
+Lastly, the cleaned and reduced dataset is split into training and testing set where the training dataset consisted of 75% of the dataset while testing set contained the remaining 25%. This split ensures that the model can be tested and verified on a new set of data which the model has not been exposed to before once the model has been trained. The dataset is prepared for model implementation where they are normalised to ensure that the scale would be equal for all numerical predictor variables and the preprocessing steps are applied on the train and test datasets accordingly. 
+
+Followingly, the models are tuned to optimise the performance using the training set across all three algorithms Linear Discriminant Analysis (LDA), K-Nearest Neighbors (KNN), and Random Forest (RF). The best model is selected based on it's accuracy after the performance of each is compared. Using 10-fold validation set from the preprocessed training dataset, the three models are fitted. On the test dataset, the model with the highest prediction accuracy is used to make the prediction. Using the accuracy level and AUC values for each of the model, the best prediction model is chosen to predict the songs’ genres.
+
+
+# Results
+## Explanatory Data Analysis
+
+This section explores the three main questions the founders have asked in regards to the factors that affect the genre. The other subsequent questions have also been answered and highlighted below:
+
+- Does the popularity of songs differ between genres?
+
+When observing figure 1, the answer to the question above is yes. There is a distinct difference in popularity across the different genres which shows that the genre plays an important role in shaping its popularity in Spotify. It can be seen that Pop songs have the highest median value of popularity followed by very closely by Latin. This indicates that Pop is the most popular genre. EDM seems to be the least popular compared to the other genres as it has the lowest median. In terms of spread, R&B and Rock have a bigger spread compared to the other genres. Rap has the smallest spread as can be seen in figure 1. Hence, it can be deduced that there is a very clear relationship between the popularity of songs across different genres.
+
+- Is there a difference in speechiness for each genre?
+
+When observing figure 2, the answer to the question above is yes. When looking across each genre, a difference in speechiness can be observed. Rap clearly has the highest median, indicating that it has the highest speechiness level. Rock and Pop have the least words as can be seen with lowest median level. In terms of spread, Rap has the biggest spread while Rock and Pop have the smallest spread. Between the rest of the genres, the level of speechiness does not differ from one to the other as much, for instance, Latin and R&B songs when compared to Rap. Each genre has a few outliers. In short, the Rap genre has the highest amount of words in a song which is expected. 
+
+- How does track popularity change over time?
+
+When observing figure 3, the trend line on the scatter plot shows that the songs that are released more recently seems to be more popular compared to the songs released years ago. From figure 4, it can be observed that songs around the 1970s have high popularity. Over the years, a dip in popularity can be observed from the 1980s to 2000s. After the 2010s, an increasing trend in popularity can be observed.  However, from the spread of the data in the scatter plot, it is quite hard to see the overall relationship as there is not much of a distribution of songs before the 1970s in that date range. But all in all, the most recent songs 
+can be highlighted to have garned most popularity among the Spotify users. 
+
+-  Does the year the song was released affect the genre ?
+
+When observing figure 5, the answer to the question above is yes. There is clear relationship in the  
+years in which the songs released differ between genres. Around the year 2000, rock music were mostly released. Closing in 2015, R&B music was mostly released. Nearing 2017-2018, Pop, EDM and Latin songs were mostly released. Closing in to 2019, EDM songs was mostly released. Hence, it can be observed that EDM songs peaked in the most recent times as the median is the highest while Rock music ruled during early 2000s. In terms of spread, Rock music can be seen to have the highest spread, while EDM looks to have the smallest spread. From the variations in the year, it can deduced that the year the songs was released can influence the prediction of the genre of the song.
+
+- Does how danceable the song is affect the genre ?
+
+When observing figure 6, the answer to the question above is yes. The median for Rap is the highest (close to 0.75 unit) indicating that the Rap genre has the highest danceability while Rock has the lowest median (close to 0.5 unit) indicating that the Rock genre has the lowest danceability. The Latin and R&B genres are not too far along when compared to Rap. All these genres do have a few outliers. 
+
+- Does the tempo of the song affect the genre ?
+
+When observing figure 7, the answer to the question above is yes. The median for the EDM is the highest indicating that EDM has the highest tempo at about 130 beats per minute while R&B has the lowest median indicating it has the lowest tempo at about 110 beats per minute. The tempo across Rap, Rock and Pop genres are somewhat similar with minor differences. The tempo for the Latin genre is slightly higher than the R&B genre.   
+
+## Model Fitting, Selection and Tuning
+
+The expert statistians have suggested three models namely a linear discriminant analysis (LDA) model, a K-nearest neighbours model with a range of 1 to 100 and 20 level (KNN) and a random forest with 100 trees and 5 levels (RF). While the LDA model does not have any additional parameters that require tuning, KNN and RF models had been recommended to be tuned on a given range of values.  
+
+To further delve into the models, KNN is a model that classifies a data point by identifying its k-nearest neighbors in the feature space. The k here which is essentially the "neighbour" parameter is the number of songs the algorithms observes in order to make a prediction about a song genre. The class that a new song's "k" closest neighbors share the most determines the genre of the song. For instance, if the majority of the k-nearest neighbors belong to the "pop" genre, the new song would be classified as "pop." Hence, choosing the right "k" value is important because having it too low might make the the prediction overly sensitive to noise in the data while too high might make the prediction too general.  Thus, the "neighbor" parameter in the KNN model is tuned in the range of 1 to 100 and 20 levels which indicates an exploration of different values for the k parameter where the model is tuned with 20 different neighbour values within the range of 1 to 100. After tuning the kNN Model, the neigbour 
+value of 100 was obtained.
+
+Next for the RF model, 100 decision trees were recommended. RF model essentially combines the predictions of multiple decision trees. The parameters "mtry" and "min_n" are tuned where the "mtry" parameter determines the number of randomly selected features considered at each split when constructing each tree in the forest while the "min_n" determines the minimum number of observations required in the individual decision trees to make the prediction. Both the parameters are tuned at 5 levels respectively. After tuning the RF mode, the mtry and min_n pararameters of 
+4 and 11 were obtained. 
+
+Followingly, each of the model are fitted onto the training dataset and the performance for each model was evaluated using the Accuracy and AUC metrics. The AUC metric helps understand how well the model is able to distinguish the different genres based on its predictions. The accuracy on the other hand measures the overall correctness of the model, where it highlights how many genres of the songs were predicted accurately. Based on the results, the RF model had obtained the highest accuracy of 0.562 and a AUC of 0.853. The KNN model had obtained an accuracy of 0.514 and 0.818 for the AUC. Lastly, the LDA model had obtained an accuracy of 0.494 and AUC of 0.804. Overall, the random forest model is the best model for the prediction of the genre of the songs. 
+
+# Discussion
+
+From the VIP plot, it can be observed that the initial proposition of feature made by the founders is relevant where the year in which the song was released holds the highest level of relevance. To further clarify, VIP plot helps assess the importance of variables in a model. It can help identify which variables contribute significantly to the model's predictive performance. Hence from the plot, it can be observed that the track_release_date holds the highest relevance in predicting the genre of the songs. This is followed by the danceability of the song, the speechiness of the song as well as the  tempo of the song. Besides the influential features the founders had proposed, there are other features such as the energy of the song, the acousticness of the song, the instrumentalness of the song, the valence of the song, the duration of the song as well as the loudness of the song which 
+can be used together with the features proposed to obtain accurate predictions of genres. 
+
+After determining that the RF model yields the best results as compared to the other model, the performance of the model had been tested on the test dataset. Using the confusion matrix, the performance of the predictions obtained from fitting the RF model with testing dataset can be observed. The confusion matrix helps assess how well a model has classified instances from each class. It can help identify how often the models are able to predict the genre correctly as well as when its misclassifying things into incorrect categories. Hence from the confusion matrix, it can be observed that the Rock genre is being classified most accurately. Coming in second is the EDM genre followed by the Rap genre. As for the other genres, the Pop genre is is being classified least accurately. Latin and R&B genre is being classified with lower accuracy as well though slightly better than Pop. 
+
+To further provide insights on the performance and classification of the model's effectiveness, the metrics **Sensitivity** which evaluates how well the model correctly identifies songs of a specific genres where a higher sensitivity  indicates that the model is correctly classifying instances of the target genre is used. The metric **Specificity** which evaluates the model's ability to accurately predict songs that do not fall into a particular genre where a  high specificity value indicates that the model can correctly identifying songs outside the target genre and avoid false positives is also used. **Accuracy** which evaluates the overall correctness of the model and **Precision** which evaluates if the songs the model predicted as belonging to a specific genre are actually from that particular genre are used as well.
+
+That being said, the RF model which performed best out of all the other three models have a sensitivity of 0.541, specificity of 0.908, accuracy of 0.541 and precision of 0.538.
+
+# Conclusion
+
+In conclusion, this report provides a comprehensive analysis on the Spotify dataset aimed to predict the songs genres and further provide insights into the factors influencing genre classification. The dataset contained 32,833 songs with 23 variable which were then carefully processed, cleaned and explored. The proposed features which were the song release year, speechiness, danceability, and tempo 
+which the founders were interested in had significant influence when predicting the genre of the song. The year the song was released held highest relevance in determining genre of the song. Other features namely the energy of the song, the acousticness of the song, the instrumentalness of the song, the valence of the song, the duration of the song as well as the loudness of the song also had influenced the song genre classification process as well.  One thing to note was that during the EDA analysis, when comparing the relationship of the genre and the popularity, it was found that there was a clear significant relationship between the two. However, the popularity feature (track_popularity) was not included as the predictor indicating that the relevance of popularity feature in classifying the song genre was not high enough when compared to the other features.
+
+Moreover, in terms of the models, compared to the Linear Discriminant Analysis and K-Nearest Neighbors models, the Random Forest model obtained the highest accuracy and therefore is recommended for genre prediction. The random forest model performed admirably compared to the other models and hence can be used by Spotify to further enhance customer experience.  During the training process, the RF model obtained an accuracy of 0.562 while for the testing process the RF model obtained an accuracy of 0.541. The results obtained can be considered satisfactory. The model was able to accurately classify the Rock, EDM and Rap genres as compared to R&B, POP and Latin genre. 
+
+In consequence, the Random Forest model emerged as a robust choice for genre prediction. As Spotify continues to strive for an enhanced user experience, leveraging machine learning models for accurate genre predictions becomes instrumental. Hence to further improve the performance of the model, other methods such as hyperparameter tuning and ensemble methods where predictions from multiple models are combine can be recommended. Moreover, other algorithms such as Logistic Regression and Support Vector Machines can also be implemented. Thus, for tailored user experience and efficient playlist curation, being able to accurately predict song genres is paramount. The insights gained from this report can help reach towards that goal.
+
+
+# Appendix
+
+# Importing Libraries & Getting Spotify Data
+```{r Loading Libraries,message=FALSE,warning=FALSE}
+
+library(tidyverse)
+library(inspectdf)
+library(recipes)
+library(dplyr)
+library(rsample)
+library(parsnip)
+library(modelr)
+library(yardstick)
+library(stringr)
+library(modelr)
+
+
+```
+
+```{r Getting Spotify Data, message=FALSE}
+
+spotify_songs <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-21/spotify_songs.csv')
+
+```
+
+
+# Data Cleaning
+
+```{r Data Cleaning}
+
+library(skimr)
+
+head(spotify_songs)
+
+str(spotify_songs)
+
+spotify_songs %>%
+  skim_without_charts()
+
+```
+
+Based on the above code, we can observe that there are a total of 23 variables and 32833 observations. The independent variable (playlist_genre) is also part of the 23 variables. There are 10 variables under character data type and there are 13 variables under the numerical data type. In terms of missing values, the track_name,track_artist and track_album_name all contain 5 missing values.Hence it essentially makes sense to drop the observations of the missing values first as this further reduces the dimensions of the dataset observations. Now, the first thing to do here would be to remove the missing values in the observations.
+Next, the minimum and maximum ranges of the variables danceability, energy, key, loudness, mode, speechiness, acousticness, instrumentalness, liveness, valence, tempo, duration_ms are checked to ensure they fall within the expected ranges. After checking, one thing to note here is that for the duration_ms variable, the minimum duration_ms is 4000 miliseconds which does not make sense as length of a song cant be expected to be 4s. Hence, the anamoly is removed.The loudness ranged from -46.448 to 1.275 which is past the 0 decibels, and hence as been removed. 
+
+```{r Remove missing values, remove anamolies, message=FALSE}
+
+clean_spotify_data <- na.omit(spotify_songs)
+
+colSums(is.na(clean_spotify_data))
+
+#range(clean_spotify_data$danceability)
+#range(clean_spotify_data$energy)
+#range(clean_spotify_data$key)
+#range(clean_spotify_data$loudness)
+#range(clean_spotify_data$mode)
+#range(clean_spotify_data$speechiness)
+#range(clean_spotify_data$acousticness)
+#range(clean_spotify_data$liveness)
+#range(clean_spotify_data$valence)
+#range(clean_spotify_data$tempo)
+#range(clean_spotify_data$duration_ms)
+#range(clean_spotify_data$loudness)
+
+cat("Minimum song length:", min(clean_spotify_data$duration_ms), "\n")
+
+cat("Maximum loundess decibel :", max(clean_spotify_data$loudness), "\n")
+
+library(dplyr)
+
+clean_spotify_data <- clean_spotify_data %>%
+  filter(duration_ms > 4000)
+
+clean_spotify_data <- clean_spotify_data %>%
+  filter(loudness <= 0)
+
+print(min(clean_spotify_data$duration_ms))
+print(max(clean_spotify_data$loudness))
+
+skim_without_charts(clean_spotify_data)
+
+
+```
+
+Moving on, there is a large number of unique values for the variables within the character data type with the exception of playlist_genre.This may cause unnecessarily increase model compelexity which can lead to overfitting and also would require more computational power. Hence the variables track_id, track_name, track_artist, track_album_id, track_album_name, playlist_name, playlist_id and playlist_subgenre are removed.
+
+Moreover, when observing the date values in the track_album_release_data, there are two different formats that has been used, namely  ‘yyyy-mm-dd’ and ‘yyyy’. Hence, the variable is reformatted and changed to numerical(date) data type.Essentially only the year of the song is desirable. Thus, this is done by extracting only the years from the track_album_release_date and using paste0() to append "-12-12" to each year. This is then converted to a Data Object using year(). Doing so will further simplify the plotting process in the future. Furthermore, the variables playlist_genre is also in the form of incorrect data type and hence has been converted to the factor data type. This then represents the variables as categorical variables.
+
+```{r Removing Duplicate Columns and Changing to Categorical Variables}
+
+library(dplyr)
+library(tidyverse)
+
+clean_spotify_data <- clean_spotify_data %>%
+  dplyr::select(-track_id, -track_name, -track_artist,
+         -track_album_id, -track_album_name,
+         -playlist_name, -playlist_id,
+         -playlist_subgenre)
+
+clean_spotify_data
+
+library(dplyr)
+library(stringr)
+library(lubridate)
+
+extracting_year <- str_match(clean_spotify_data$track_album_release_date, '(\\d{4})')[, 1] %>% paste0("-12-12") 
+
+extracting_year <- extracting_year %>%
+  year()
+
+
+ft_playlist_genre <- as_factor(clean_spotify_data$playlist_genre)
+ft_mode <- as_factor(clean_spotify_data$mode)
+
+
+clean_spotify_data <- clean_spotify_data %>% 
+  mutate(
+playlist_genre =  ft_playlist_genre,
+track_album_release_date = extracting_year,
+mode = ft_mode
+)
+
+clean_spotify_data
+
+
+```
+
+Lastly, due to limitations in computational power, using slice_sample() which randomly chooses n number of observations from each group of genre, the data has been reduced to 1000 observations from each genre. set.seed(1868997) has been set to ensure reproducibility.
+
+```{r Reducing observations to 1000}
+
+set.seed(1868997)
+
+clean_spotify_data <- clean_spotify_data %>%
+group_by(playlist_genre) %>%
+slice_sample(n = 1000) %>%
+ungroup()
+
+clean_spotify_data %>%
+skim_without_charts()
+
+count(clean_spotify_data,playlist_genre)
+
+```
+
+# Explanatory Data Analysis
+## 1. Popularity of songs differ between genres
+
+```{r Popularity vs Genre}
+
+clean_spotify_data %>% 
+  ggplot(aes(x = fct_reorder(playlist_genre, track_popularity), y = track_popularity, fill = playlist_genre)) +
+  geom_boxplot() +
+  xlab("Song Genre") +  
+  ylab(" Song Popularity") +  
+  ggtitle(" Figure 1 : Boxplot Distribution on Popularity of Songs by Genre") + 
+  theme_minimal()
+
+
+```
+Pop Songs are seen to be more popular as the median is higher as compared to the rest of the genres
+
+
+## 2. Genres and Speechiness of Songs
+```{r Genre and Speechiness}
+
+clean_spotify_data %>% 
+  ggplot(aes(x = playlist_genre, y= speechiness, fill = playlist_genre)) +
+  geom_boxplot() +
+  xlab("Song Genre") +  
+  ylab(" Song Speechiness") +  
+  ggtitle("Figure 2 Boxplot Distribution on Speechiness of Songs by Genre") + 
+  theme_minimal()
+
+```
+
+Rap songs are observed to have the highest speechiness. Rap songs have the highest median as compared to the rest.
+
+
+## 3. Song Popularity Change over Time
+```{r Popularity Change over Time}
+
+clean_spotify_data %>% 
+  ggplot(aes(x = track_album_release_date, y= track_popularity)) +
+  geom_point(col= "blue") +
+  geom_smooth(method = "lm", se = FALSE, col="red") +
+  xlab("Song Release Year") +  
+  ylab(" Song Popularity") +  
+  ggtitle(" Figure 3 Scatterplot Distribution of the popularity of songs over the years it is released") + 
+  theme_minimal()
+
+```
+
+```{r Average popularity over time}
+
+average_pop_year <- clean_spotify_data %>%
+  group_by(track_album_release_date) %>%
+  summarise(
+    avg_pop = mean(track_popularity),
+    count = n()
+  )
+
+average_pop_year
+
+ggplot(average_pop_year, aes(track_album_release_date,avg_pop)) +
+  geom_line() +
+  xlab("Song Release Year") +  
+  ylab(" Song Average Popularity") +  
+  ggtitle(" Figure 4 Average Distribution of the popularity of songs over the years it is released") + 
+  geom_smooth() +
+  theme_minimal()
+
+```
+
+## 4.  Released year of album and genre
+```{r Year vs Genre }
+
+clean_spotify_data %>%
+  ggplot(aes(fct_reorder(playlist_genre,track_album_release_date), track_album_release_date, fill =playlist_genre)) +
+  geom_boxplot() +
+xlab("Song Genre") +  
+  ylab(" Song Year Released ") +  
+  ggtitle("Figure 5 Boxplot Distribution of song release vs genre") + 
+  theme_minimal()
+  
+```
+
+EDM looks to be slightly popular as compared to the rest in the 2010s. Latin genre looks to be popular too around the 2010s falling slightly behind EDM.
+
+## 5. How Danceable the song is
+```{r Danceable vs Genre}
+
+clean_spotify_data %>% 
+  ggplot(aes(fct_reorder(playlist_genre, danceability), danceability, fill = playlist_genre)) +
+  geom_boxplot() +
+  xlab("Song Genre") +  
+  ylab(" Song Danceability") +  
+  ggtitle(" Figure 6 Boxplot Distribution on Danceability of Songs by Genre") + 
+  theme_minimal()
+
+```
+
+Rap genre looks to be more danceable. It can also be seen that the latin genre is not too far along and close to the rap genre. However, the median for Rap is still higher.
+
+## 6. The tempo of the song
+```{r Genre vs tempo}
+
+clean_spotify_data %>% 
+  ggplot(aes(fct_reorder(playlist_genre, tempo), tempo, fill = playlist_genre)) +
+  geom_boxplot() +
+  xlab("Song Genre") +  
+  ylab(" Song Tempo") +  
+  ggtitle(" Figure 7 Boxplot Distribution on Tempo of Songs by Genre") + 
+  theme_minimal()
+
+```
+EDM genre looks to have a higher tempo as it's median is higher as compared to the other genres.
+
+# Model Fitting
+## Data Splitting and Preprocessing
+```{r Data Splitting }
+
+set.seed(1868997)
+split_data <- initial_split(clean_spotify_data, strata = playlist_genre )
+
+print(split_data)
+
+training_data <- training(split_data)
+testing_data <- testing(split_data)
+
+percentage_training <- nrow(training_data) / nrow(clean_spotify_data) * 100
+percentage_testing <- nrow(testing_data) / nrow(clean_spotify_data) * 100
+
+cat("Percentage of Training Data:", percentage_training, "%\n")
+
+cat("Percentage of Testing Data:", percentage_testing, "%\n")
+
+training_data %>% head()
+
+testing_data %>% head()
+
+```
+From the output above, after splitting the data, from a total of 6000, there are 4500 observations for training and 1500 for testing.
+
+
+```{r PCA Part 1}
+
+library(tidymodels)
+library(tidyverse)
+library(recipes)
+library(forcats)
+library(tidymodels)
+
+
+playlist_recipe <- recipe(playlist_genre ~. , data = clean_spotify_data) %>%
+  # step_dummy(all_nominal(), -all_outcomes()) %>%
+  step_dummy(mode) %>%
+step_zv( all_predictors() ) %>%
+step_normalize(all_numeric()) %>%
+step_corr( all_numeric()) %>%
+  step_pca(all_predictors())
+
+
+playlist_recipe <- playlist_recipe %>%
+  prep()
+
+playlist_recipe
+
+tidy( playlist_recipe, 5 ) %>%
+  filter( component %in% c("PC1", "PC2", "PC3", "PC4") ) %>%
+  group_by( component ) %>%
+  top_n(10, abs(value) ) %>%
+  ungroup() %>%
+  ggplot( aes( x = abs(value), y = terms, fill = value > 0 ) ) +
+  geom_col(show.legend = F) +
+  facet_wrap( ~ component, scales = "free") 
+
+train_preprocess_spotify <-
+  juice(playlist_recipe)
+
+
+
+```
+
+Based on the output above, feature with zero variance has been removed. High correlated features have been removed. This helps to eliminate redundant information and reduces the risk of multicollinearity. Using step_pca(), the PCA process has been performed. Mode has been set as the dummy variable here. The feature of the highest influence has been identified for each principle component.
+ 
+
+
+```{r PCA Part 2}
+
+train_preprocess_spotify %>%
+  head()
+
+sdev <- playlist_recipe$steps[[5]]$res$sdev
+ve <- sdev^2 / sum(sdev^2)
+head(ve)
+PC.pve <- tibble(
+  pc = fct_inorder( str_c("PC", 1:14)),
+  pve = cumsum( ve ) 
+)
+
+PC.pve %>%
+  ggplot( aes( x = pc,
+               y = pve,
+fill = pve >= 0.9 ) ) + 
+  geom_col() +
+  theme( axis.text.x = element_text( angle = 90 ) ) 
+
+PC.pve %>%
+  filter( pve >= 0.9) 
+
+
+PC.pve
+
+
+
+```
+
+Based on the above, we can see that from 14 predictors it has dropped to 11 dimensions.
+It is going to take 11 components to explain at least 90% of the variance in our predictors.
+PCA is generally more useful when there are higher dimensions involved but based on the output above, it can be observed that the dimensions just dropped from 14 to 11 which is lesser than expected. Hence if the PCA methodology were to be taken, it would mean taking the first 11 components and dropping the 12th 13th and 14th component. The drop would have been done as only the last 4 components takes up only 10% of the components. Hence, it can be observed with such a minimal drop that,there is no need to do a PCA as the final output would not make much of a difference. 
+
+
+```{r PCA 3}
+
+playlist_recipe <- recipe(playlist_genre ~. , data = training_data) %>%
+  step_dummy(all_nominal(), -all_outcomes()) %>%
+  step_zv( all_predictors() ) %>%
+  step_normalize(all_numeric()) %>%
+  step_corr( all_numeric()) %>%
+  #step_pca(all_predictors(), num_comp = 11) %>%
+  prep()
+
+  
+
+```
+
+
+```{r Final Preprocessing}
+
+train_preprocess_spotify <- juice(playlist_recipe)
+
+test_preprocess_spotify <- bake(playlist_recipe, new_data = testing_data)
+
+train_preprocess_spotify %>%
+skim_without_charts()
+
+
+```
+
+ 
+It can be observed that the standard deviation is 1 and the mean is 0 for all predictors suggesting that the dataset has been normalised. The functions step_zv() removes any predictors that have zero variance,step_normalize() normalises predictors to have mean 0 and standard deviation 1 which will help improve the performance of some of our models and lastly
+step_corr() removes highly correlated predictor variables because when variables are highly correlated, this can cause some issues with fitting the model. Hence it is advisable to remove them.
+
+
+
+# Model Tuning
+
+For this report, the models : Linear discriminant analysis (LDA) model, K-nearest neighbours (KNN) model with a range of 1 to 100 and 20 levels and Random Forest with 100 trees and 5 levels are considered for analysis. 
+
+To start off, bootstrap of preprocessed training data to tune model is created
+
+
+```{r Boostrapping}
+
+library(rsample)
+
+set.seed(1868997)
+bootstrap_spotify <- bootstraps( train_preprocess_spotify, 
+times = 10, 
+strata = playlist_genre ) 
+
+
+bootstrap_spotify
+
+```
+
+Now, there are 10 bootstraps samples stratified by playlist_genre for tuning.
+
+## K-nearest Neigbours
+A model specification for a KNN - model needs to be created with the neigbour parameters to be tuned.Also adding grid_regular()  to make a grid of 20 k-values from range 1 to 100 to tune the model.
+
+```{r Fit K-nearest}
+
+spotify_knn_spec <- nearest_neighbor(
+mode="classification",
+neighbors = tune())
+
+
+spotify_knn_spec <- spotify_knn_spec %>% set_engine("kknn")
+
+knn_grid <- grid_regular(
+neighbors( range = c( 1, 100 ) ),
+levels = 20 )
+
+
+```
+
+Next, tune_grid() is used to tune the kNN models using cross validation sets.
+
+```{r KNN tuning}
+
+set.seed(1868997)
+
+spotify_knn_tune <- tune_grid(
+  object = spotify_knn_spec,
+  preprocessor = recipe(playlist_genre ~ . , data = train_preprocess_spotify),
+  resamples = bootstrap_spotify,
+  grid = knn_grid )
+
+```
+
+The results can be seen graphically below :-
+
+```{r KNN Model }
+
+spotify_knn_tune %>% 
+  collect_metrics() %>% 
+  ggplot( aes(neighbors, mean, color = .metric )) +
+  geom_line() +
+  facet_wrap( ~.metric, scales = "free", nrow = 4) +
+  geom_vline(xintercept = 70, linetype = "longdash", color = "green")
+
+
+
+```
+
+Finding the Best Accuracy
+```{r Selecting Best Accuracy KNN}
+
+best_knn_accuracy <- select_best(spotify_knn_tune,metric = "accuracy")
+
+best_knn_accuracy
+
+```
+
+Now on to finalizing the KNN model.
+```{r Finalising Knn}
+
+final_knn <-
+  finalize_model(spotify_knn_spec, best_knn_accuracy)
+
+final_knn
+
+```
+
+## Random Forest Model
+Moving, on, the same process will be done for the Random Forest Model where a model specification needs to be made to tune mtry and min_n parameters. Following a grid needs to be made to tune the random forest model.
+
+```{r Random Forest Model}
+
+library(dplyr)
+
+spotify_rf_spec <- rand_forest(
+  mode="classification", 
+  mtry = tune(),
+  trees = 100,
+  min_n = tune())
+
+spotify_rf_spec  <- spotify_rf_spec  %>% set_engine( "ranger", importance = "permutation" )
+
+rf_grid <- grid_regular( 
+  finalize( mtry(),
+            train_preprocess_spotify %>%
+             dplyr:: select( -playlist_genre)),
+  min_n(),
+  levels = 5 )
+
+rf_grid
+
+
+```
+
+
+Now moving on to tuning the random forest model.
+
+```{r Tune random forest}
+
+set.seed(1868997)
+
+spotify_rf_tune <- tune_grid(
+  object = spotify_rf_spec,
+  preprocessor = recipe(playlist_genre ~ . , data = train_preprocess_spotify),
+resamples = bootstrap_spotify,
+grid = rf_grid)
+
+```
+
+
+The results can be seen graphically below :-
+
+```{r RF Model }
+
+library(ggplot2)
+
+spotify_rf_tune %>% 
+  collect_metrics() %>%
+  mutate( min_n = as.factor( min_n ) ) %>%
+  ggplot( aes( mtry, mean, colour = min_n ) ) +
+  geom_point( size = 3 ) +
+  geom_line( alpha = 0.85 ) +
+  facet_wrap( ~ .metric, scales = "free", nrow = 4 ) +
+  geom_vline(xintercept = 8, linetype = "longdash", color = "green")
+
+```
+
+
+Finding the Best Accuracy
+```{r Selecting Best Accuracy RF}
+
+best_rf_accuracy <- select_best(spotify_rf_tune,metric = "accuracy")
+
+best_rf_accuracy
+
+```
+
+
+Now on to finalizing the RF model.
+```{r Finalising RF}
+
+final_rf <-
+  finalize_model(spotify_rf_spec, best_rf_accuracy)
+
+final_rf
+
+
+
+```
+
+## Linear Discriminant Analysis Model
+
+Lastly making a model specific for a LDA model.
+
+```{r LDA Spec}
+
+spotify_LDA_spec <- discrim_linear("classification") 
+
+spotify_LDA_spec  <- spotify_LDA_spec  %>% set_engine("MASS")
+```
+
+
+# Model Selection
+Now moving on to model selection where 10 cross-validations folds will be created from the preprocessed training data
+
+```{r Model Selection}
+
+set.seed(1868997)
+cv_spotify <-  vfold_cv(train_preprocess_spotify, v = 10)
+
+
+```
+
+## K-Nearest Neigbour
+
+```{r K-Nearest Neigbour}
+
+spotify_knn_resamples <- fit_resamples(
+  object = final_knn,
+  preprocessor = recipe(playlist_genre ~ . , data = train_preprocess_spotify),
+  resamples = cv_spotify 
+)
+
+collect_metrics(spotify_knn_resamples)
+
+```
+
+## Random Forest Model
+
+```{r Random Forest}
+
+spotify_rf_resamples <- fit_resamples(
+  object = final_rf,
+  preprocessor = recipe(playlist_genre ~ . , data = train_preprocess_spotify),
+  resamples = cv_spotify 
+)
+
+collect_metrics(spotify_rf_resamples)
+
+```
+
+## Linear Discrimant Analysis Model
+
+```{r LDA}
+
+library(parsnip)
+library(discrim)
+
+spotify_lda_resamples <- fit_resamples(
+  object = spotify_LDA_spec ,
+  preprocessor = recipe(playlist_genre ~ . , data = train_preprocess_spotify),
+resamples = cv_spotify)
+
+collect_metrics(spotify_lda_resamples)
+
+```
+
+
+Based on the models above, it can be observed that the random forest model performed the best out of the 3 models. The random forest model has the highest accuracy values and AUC. 
+
+
+# Model Evaluation
+Lastly, a random forest modeled is fitted along with the variable importance plot.
+
+```{r Model Evaluation}
+
+library(vip)
+set.seed(1868997)
+
+spotify_rf_final <- final_rf %>% 
+  fit(playlist_genre ~ . , data = train_preprocess_spotify )
+
+vip(spotify_rf_final) 
+
+
+```
+
+```{r Predicting}
+
+
+pred_spotify <- predict(
+  object = spotify_rf_final,
+  new_data = test_preprocess_spotify
+) %>%
+mutate(playlist_genre = test_preprocess_spotify$playlist_genre)
+
+pred_spotify
+
+```
+
+Moving on to observing the confusion matrix and the evaluation metrics
+
+```{r Evaluation metrics}
+
+pred_spotify  %>%
+conf_mat(truth = playlist_genre, estimate = .pred_class)
+
+
+
+```
+
+```{r Metrics Check}
+
+
+sensitivity <- pred_spotify %>%
+  sens(truth = playlist_genre, estimate = .pred_class)
+
+specificity <- pred_spotify %>%
+spec(truth = playlist_genre, estimate = .pred_class)
+
+accuracy <- pred_spotify %>%
+accuracy(truth = playlist_genre, estimate = .pred_class)
+
+precision_result <- pred_spotify %>%
+  precision(truth = playlist_genre, estimate = .pred_class)
+
+sens_spec <- rbind(sensitivity,specificity, accuracy,precision_result)
+sens_spec
+
+
+```

@@ -1,0 +1,295 @@
+---
+title: "Assignment3_Question1"
+author: "Pramugdha Chowdhury"
+date: "2024-04-18"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+\usepackage{newunicodechar}
+\newunicodechar{▇}{\textblock}
+
+
+# a) 
+```{r a}
+
+pacman::p_load(tidyverse,tidymodels,skimr,yardstick)
+
+a3_data <- readRDS("a3_data.rds")
+
+```
+
+
+# b)
+```{r b}
+
+skim(a3_data)
+
+
+```
+
+# c)
+```{r c}
+
+# i) Removing any unexpected values from Y
+a3_data %>%
+  count(Y)
+
+a3_data <- a3_data %>%
+  mutate(
+    Y= case_when(Y %in% c("A","B") ~ Y,
+                 TRUE ~ NA)
+  )
+
+a3_data %>%
+  count(Y)
+
+# ii) Identifying and removing any outliers from X1
+a3_data <- a3_data %>% filter(X1<20)
+
+
+# iii) Identifying and removing any outliers from X2
+
+a3_data <- a3_data %>% filter(X2>-5)
+a3_data <- a3_data %>% filter(X2<8.5)
+
+ggplot(a3_data, aes(X2)) + geom_boxplot()
+
+# iv) Removing any observations with missing values (NAs).
+a3_data <- a3_data %>% drop_na()
+
+
+```
+
+
+# d)
+```{r d}
+
+a3_data_recipe <- recipe(Y~ X1+X2, data=a3_data) %>%step_normalize(all_numeric_predictors())
+
+```
+
+
+# e)
+```{r e}
+
+svm_linear_model <- svm_linear() %>%
+  set_engine("kernlab") %>% set_mode("classification")
+
+
+svm_poly_model <- svm_poly(mode="classification", degree = 3) %>% set_engine("kernlab")
+
+svm_radial_model <- svm_rbf(mode = "classification") %>% set_engine("kernlab")
+
+
+```
+
+
+# f)
+```{r f}
+
+svm_linear_wf <- workflow()
+svm_linear_wf <- svm_linear_wf %>%
+  add_recipe(a3_data_recipe) %>%
+  add_model(svm_linear_model)
+
+svm_poly_wf <- workflow()
+svm_poly_wf <- svm_poly_wf %>%
+  add_recipe(a3_data_recipe) %>%
+  add_model(svm_poly_model)
+
+
+svm_radial_wf <- workflow()
+svm_radial_wf <- svm_radial_wf %>%
+  add_recipe(a3_data_recipe) %>%
+  add_model(svm_radial_model)
+
+```
+
+
+# g)
+```{r g}
+
+svm_linear_fit <- fit(svm_linear_wf, a3_data)
+svm_poly_fit <- fit(svm_poly_wf, a3_data)
+svm_radial_fit <- fit(svm_radial_wf, a3_data)
+
+```
+
+
+# h)
+```{r h}
+
+
+predY_svm_linear <- a3_data %>% 
+  add_column(predict(svm_linear_fit, new_data = a3_data, type = "prob")) %>%
+  mutate(
+    .pred_class = if_else(.pred_A > .pred_B, "A", "B"), 
+    type = "SVM Linear"
+  )
+
+predY_svm_poly <- a3_data %>%
+  add_column(predict(svm_poly_fit, new_data = a3_data, type = "prob")) %>%
+  mutate(
+    .pred_class = if_else(.pred_A > .pred_B, "A", "B"),
+    type = "SVM Poly"
+  )
+
+predY_svm_radial <- a3_data %>%
+  add_column(predict(svm_radial_fit, new_data = a3_data, type = "prob")) %>%
+  mutate(
+    .pred_class = if_else(.pred_A > .pred_B, "A", "B"),
+    type = "SVM Radial"
+  )
+
+
+predY_svm_linear <- predY_svm_linear %>%
+  mutate(
+    Y = factor(Y),
+    .pred_class = factor(.pred_class, levels = levels(Y))
+  )
+
+predY_svm_poly <- predY_svm_poly %>%
+  mutate(
+    Y = factor(Y),
+    .pred_class = factor(.pred_class, levels = levels(Y))
+  )
+
+predY_svm_radial <- predY_svm_radial %>%
+  mutate(
+    Y = factor(Y),
+    .pred_class = factor(.pred_class, levels = levels(Y))
+  )
+
+#svm_combined <- bind_rows(predY_svm_linear,predY_svm_poly, predY_svm_radial)
+categorical_metrics <- metric_set(sens,spec,precision,recall)
+metric_linear <- predY_svm_linear %>% categorical_metrics(truth=Y,estimate=.pred_class)
+metric_linear
+
+metric_poly <- predY_svm_poly %>% categorical_metrics(truth=Y,estimate=.pred_class)
+metric_poly
+
+metric_radial <- predY_svm_radial %>% categorical_metrics(truth=Y,estimate=.pred_class)
+metric_radial
+
+all_metrics <- bind_rows(
+  metric_linear %>% mutate(model = "Linear"),
+  metric_poly %>% mutate(model = "Polynomial"),
+  metric_radial %>% mutate(model = "Radial")
+)
+
+#svm_combined %>% categorical_metrics(truth=Y,estimate=.pred_class)
+all_metrics
+
+
+# Calculating confusion matrices
+conf_matrix_linear <- predY_svm_linear %>% conf_mat(truth = Y, estimate = .pred_class)
+conf_matrix_poly <- predY_svm_poly %>% conf_mat(truth = Y, estimate = .pred_class)
+conf_matrix_radial <- predY_svm_radial %>% conf_mat(truth = Y, estimate = .pred_class)
+
+list(
+  Metrics = all_metrics,
+  Confusion_Matrix_Linear = conf_matrix_linear,
+  Confusion_Matrix_Poly = conf_matrix_poly,
+  Confusion_Matrix_Radial = conf_matrix_radial
+)
+
+
+```
+
+
+# i)
+```{r i}
+
+svm_combined <- bind_rows(predY_svm_linear,predY_svm_poly, predY_svm_radial)
+
+svm_combined <- svm_combined %>%
+  mutate(
+    Y = as.factor(ifelse(Y == "A", 1, 0)
+  ))
+
+svm_combined %>% group_by(type) %>%
+  roc_curve(Y, ".pred_B") %>%
+  autoplot() + ggtitle("ROC Curve for SVM Models")
+
+svm_combined %>%
+  filter(type == "SVM Linear") %>%
+  roc_curve(Y, ".pred_B") %>%
+  autoplot() +
+  ggtitle("ROC Curve for Linear SVM")
+
+svm_combined %>%
+  filter(type == "SVM Poly") %>%
+  roc_curve(Y, ".pred_B") %>%
+  autoplot() +
+  ggtitle("ROC Curve for Polynomial SVM")
+
+svm_combined %>%
+  filter(type == "SVM Radial") %>%
+  roc_curve(Y, ".pred_B") %>%
+  autoplot() +
+  ggtitle("ROC Curve for Radial SVM")
+
+```
+
+
+# j)
+```{r j}
+
+svm_combined %>% group_by(type) %>% roc_auc(Y, ".pred_B")
+
+```
+
+Based on the ROC Curve and the AUC value, the SVM model with RBF kernel performs the best compared to the other 2 kernels. The ROC curve is closer to 1 and the AUC is the largest among the three making the SVM model with RBF kernel the best choice out of the 3 options.
+
+# k)
+```{r k}
+
+
+new_data <- crossing(
+  X1 = seq(
+    from = min(a3_data$X1, na.rm = TRUE),
+    to = max(a3_data$X1, na.rm = TRUE),
+    length = 500
+  ),
+  X2 = seq(
+    from = min(a3_data$X2, na.rm = TRUE),
+    to = max(a3_data$X2, na.rm = TRUE),
+    length = 500
+  )
+)
+
+new_data %>%
+  add_column(predict(svm_radial_fit,
+                     new_data = new_data)) %>%
+  ggplot(aes(X1, X2, fill = .pred_class)) +
+  geom_raster() +
+  labs(fill = "Y",
+       x = "X1",
+       y = "X2",
+       title = "Radial SVM") +
+  theme_bw() +
+  viridis::scale_fill_viridis(option = "viridis", discrete = TRUE)
+
+
+```
+
+
+
+# l)
+```{r l}
+
+prediction_data <- tibble( X1 = c(1,2),
+                    X2 = c(1,1))
+
+predicting_new_obs <- a3_data_recipe %>% prep() %>% bake(new_data = prediction_data)
+
+svm_radial_fit %>%
+  extract_fit_parsnip() %>%
+  predict(predicting_new_obs)
+
+
+
+```
+

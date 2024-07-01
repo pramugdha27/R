@@ -1,0 +1,167 @@
+---
+title: "Assignment2_a1868997_Assginment2_Question1"
+author: "Pramugdha Chowdhury"
+date: "2024-03-18"
+output: html_document
+---
+
+# 1 Load Libraries
+```{r 1 Load Libraries, echo = TRUE, warning = FALSE, message = FALSE}
+
+library(tidymodels)
+library(tidyverse)
+library(yardstick)
+library(ggplot2)
+library(pROC)
+
+```
+
+# 2 Load Data
+
+```{r 2 Load Data}
+bird_data <- readRDS("bird_bath.rds")
+bird_data <- as_tibble(bird_data)
+nrow(bird_data)
+
+```
+
+# Data Cleaning
+## 3.1 Remove Missing Years
+```{r 3.1 Remove Missing Years}
+sum(is.na(bird_data$survey_year))
+bird_data <- bird_data[!is.na(bird_data$survey_year),]
+nrow(bird_data)
+
+
+```
+
+## 3.2 Identify the Top 15 Types of Bird
+```{r 3.2 Identify the Top 15 Types of Bird}
+bird_type_counts <- bird_data %>%
+  group_by(bird_type) %>%
+  summarize(total_count = sum(bird_count))
+
+top_15_birds <- bird_type_counts %>%
+  arrange(desc(total_count)) %>%
+  top_n(15, wt = total_count)
+
+bird_data <- bird_data %>%
+  subset(bird_type %in% top_15_birds$bird_type)
+
+nrow(bird_data)
+
+
+
+```
+
+## 3.3 Create the Response Variable
+```{r 3.3 Create the Response Variable}
+
+bird_data <- bird_data %>%
+  mutate(bird_present = ifelse(bird_count > 0, "yes", "no"))
+
+#bird_data <- bird_data %>%
+# mutate(bird_present = case_when(
+#  bird_count > 0 ~ "yes",
+# TRUE ~ "no")) # else
+
+
+```
+
+
+## 3.4 Select Columns
+```{r 3.4 Select Columns}
+
+bird_data <- bird_data %>%
+  select(urban_rural, bird_type, bird_present)
+
+
+```
+
+## 3.5 Convert Variables to Categorical
+```{r 3.5 Convert Variables to Categorical}
+
+summary(bird_data)
+bird_data <- bird_data %>%
+  mutate(urban_rural = factor(urban_rural),
+         bird_type = factor(bird_type),
+         bird_present = factor(bird_present))
+summary(bird_data)
+```
+
+# 4 Models
+```{r 4  Models}
+
+## Logistic : Model 1
+bird_recipe <- recipe(bird_present ~ urban_rural + bird_type, data = bird_data) %>%
+  step_dummy()
+
+logistic_spec <- logistic_reg() %>%
+  set_engine("glm")
+
+workflow_logistic <- workflow() %>%
+  add_recipe(bird_recipe) %>%
+  add_model(logistic_spec)
+
+# Fit the model
+fit_logistic <- workflow_logistic %>%
+  fit(data = bird_data)
+
+
+# Logistic with Interaction : Model 2
+
+bird_recipe_interaction <- recipe(bird_present ~ urban_rural + bird_type, data = bird_data) %>%
+  step_dummy() %>%
+  step_interact(terms = ~ urban_rural:bird_type)
+
+logistic_spec_interaction <- logistic_reg() %>%
+  set_engine("glm")
+
+workflow_interaction <- workflow() %>%
+  add_recipe(bird_recipe_interaction) %>%
+  add_model(logistic_spec_interaction)
+
+# Fit the model
+fit_interaction <- workflow_interaction %>%
+  fit(data = bird_data)
+
+
+workflow_logistic
+workflow_interaction
+
+```
+
+Both models are fitted to the bird_bath data, with ROC curves displayed in Figure 5.1
+
+
+# 5 ROC Curves
+```{r 5 ROC Curves, warning = FALSE, message = FALSE}
+
+# Predictions for model 1
+predictions_logistic <- predict(fit_logistic, new_data = bird_data,type="prob")
+
+# Compute ROC curve for model 1
+roc_curve_logistic <- roc(bird_data$bird_present, predictions_logistic$.pred_yes)
+
+#Plot ROC curve
+plot(roc_curve_logistic, col = "red", main = "ROC Curves", legacy.axes = TRUE, xlab = "1 - specificity", ylab = "sensitivity")
+
+
+# Predictions for model 2
+predictions_interaction <- predict(fit_interaction, new_data = bird_data,type="prob")
+
+# Compute ROC curve for model 2
+roc_curve_interaction <- roc(bird_data$bird_present,
+                             predictions_interaction$.pred_yes)
+
+# Plot ROC curves
+plot(roc_curve_interaction, col = "Cyan", add = TRUE, lty = 1)
+grid()
+
+# Add legend
+legend("right", legend = c("Model 1", "Model 2"), col = c("red", "cyan"), lty = 1, title = "model", bty = "n", xpd = TRUE)
+
+```
+
+<center>Figure 5.1: ROC curves for logistic regression models</center>
+

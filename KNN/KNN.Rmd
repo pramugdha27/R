@@ -1,0 +1,438 @@
+---
+title: "Assignment 5"
+author: "Pramugdha Chowdhury"
+date: "2023-11-12"
+output: pdf_document
+---
+
+# Data Cleaning
+## 1
+```{r Libraries Import}
+
+library(skimr)
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(tidymodels)
+library(ggplot2)
+library(inspectdf)
+library(yardstick)
+library(knitr)
+
+```
+
+```{r Data Cleaning 1}
+
+check_affairs <- read_csv("affairs.csv")
+
+head(check_affairs)
+
+```
+## 2
+From the tibble above, it can be noted that the predictor variables are sex,age,child,ym,religious,rate,occupation,education. The outcome variable here is affair. 
+
+
+## 3
+
+```{r Data Cleaning 3}
+
+skim_without_charts(check_affairs)
+
+```
+
+Based on the output above, there are no missing values. A total of 601 onservations and 9 variables can be noted. Variables sex and child should have been made as factors instead of characters and the affair variable should have been categorical instead of numeric 0 and 1. 
+
+## 4
+```{r Data Cleaning 4}
+
+check_affairs <- check_affairs %>%
+  mutate (
+    sex = as_factor(sex),
+    child = as_factor(child),
+    affair = as_factor(ifelse(affair==1,"yes","no"))
+  )
+
+```
+
+## 5
+```{r Data Cleaning 5}
+
+skim_without_charts(check_affairs)
+
+```
+
+
+### a)
+Based on the output above, about 150 responded yes to having an affair while 451 responded no to having an affair. ABout 430 people responded yes to having children while 171 responded no to having children.
+
+### b)
+
+Mean age is 32.488 while mean response on religious is 3.116.
+
+# Explanatory Analysis
+## 1
+```{r Explanatory Analysis 1, message=FALSE}
+
+check_affairs %>%
+  count(affair,sex)
+
+library(dplyr)
+
+check_affairs %>% group_by(affair,sex) %>%
+  summarise(count = n()) %>%
+  mutate(prop_sex = count / sum(count) ) 
+  
+
+
+
+```
+
+
+From the output above, there is a difference where out of 243 females, the proportion was 53.89% who asnwered no while 48% of proportion from 72 females answered yes. The proportion of women not having affair is larger than the proportion of women having an affair. 
+
+## 2
+
+```{r Explanatory Analysis 2, message=FALSE}
+
+check_affairs %>%
+  count(affair,child)
+
+library(dplyr)
+
+check_affairs %>%
+  group_by(affair,child) %>%
+  summarise(count=n()) %>%
+  mutate(prop_child = (count / sum(count)))
+
+
+```
+
+
+From the output above, 123 individuals have children and answered yes to an affair have a proportion of 82% while 307 individuals who have chidlren and answered no have a proportion of 68%. Overall, there is more chance of having chidlren if there is an affair.
+
+# Spilt and Preprocess
+## 1
+```{r Split and Preprocess 1}
+
+set.seed(1234)
+
+check_affairs_split <- initial_split(check_affairs)
+
+check_affairs_split
+
+```
+
+From the output above, from a total of 601, there are 450 observations for training and 151 for testing.
+
+## 2
+```{r Split and Preprocess 2}
+
+train_affairs <- training(check_affairs_split)
+
+test_affairs <- testing(check_affairs_split)
+
+head(train_affairs)
+
+```
+
+
+## 3
+The step_downsample() function from the themis package helps remove observations based on a specific factor variable until there is an equal number of rows/observations on each level of the variable. Downsampling helps in ensuring there is equal observations from the categories when there is unbalanced groups. For instance, in this model, there is an imbalance where 151 individuals answered “no” for having an affair and 450 individuals answered “yes” for having an affair which can leads to inaccurate predictions and a biased model. Hence downsampling helps to avoid the model from performing poorly as it can help give more accurate predictions. Downsampling helps in making sure that the patterns from the minority class do not get dominated by the majority class and hence is learnt more effectively by the model.
+
+## 4
+```{r Split and Preprocess 4}
+
+library(tidymodels)
+library(tidyverse)
+library(recipes)
+library(themis)
+
+
+check_affairs_recipe <- recipe(affair ~. , data = train_affairs) %>%
+  themis::step_downsample(affair) %>%
+  step_dummy(child, sex) %>%
+  step_normalize(all_predictors()) %>%
+  prep()
+
+check_affairs_recipe
+
+
+```
+
+## 5
+```{r Split and Preprocess 5}
+
+check_affairs_train_preprocess <- juice(check_affairs_recipe)
+
+check_affairs_test_preprocess <- bake(check_affairs_recipe,test_affairs)
+
+
+```
+
+
+## 6
+```{r Split and Preprocess 6}
+
+check_affairs_train_preprocess %>%
+  skim_without_charts()
+
+
+```
+
+Based on the output above, following the downsample, the affair now has equal number of yes and no observations with 117 each. There are child_yes and sex_female dummy variables that has been created from child and sex. THe standard deviation is 1 and the mean is 0 for all predictors suggesting that the dataset has been normalised. 
+
+# Fit Logistic Regression
+```{r Fi Logisitic Regression 1 & 2}
+
+lr_spec <- logistic_reg( mode = "classification" ) %>% 
+ set_engine( "glm" )
+
+logistic_fit <- lr_spec %>%
+  fit(affair ~ ., data = check_affairs_train_preprocess)
+
+summary(logistic_fit)
+
+
+```
+
+The reasoning is to evaluate the model's performance where the testing set can be used to validate the model's performance after the training data set has been done. The training data is used to train the model, allowing it to learn patterns and relationships within the data and the test data is used to evaluate the model's performance. If a full dataset is used, there is chance of overfitting where the model might memorise the data and give high accuracy but may perform poorly on new data. 
+
+
+# Tune and fit a k-nearest neighbours model
+## 1
+```{r Tune and Fit 1}
+
+library(tidymodels)
+library(parsnip)
+
+knn_fit <- nearest_neighbor(mode="classification", neighbors = tune())
+
+knn_fit <- knn_fit %>% set_engine("kknn")
+
+```
+
+
+## 2
+```{r Fit and Model 2}
+
+library(tidymodels)
+set.seed(1234)
+
+cross_val_affairs <- vfold_cv(check_affairs_train_preprocess, v = 5)
+
+cross_val_affairs
+
+```
+
+## 3
+```{r Fit and Model 3}
+
+range = c(5, 75)
+k_values_grid <- grid_regular(neighbors((range=range)),
+                       levels= 25)
+
+k_values_grid
+
+
+```
+
+
+## 4
+```{r Fit and Model 4}
+
+library(tidymodels)
+library(rsample) 
+library(parsnip)
+
+knn_values_tune <- tune_grid(object = knn_fit,
+                             preprocessor = recipe(affair ~ ., data =
+                                                     check_affairs_train_preprocess),
+resamples = cross_val_affairs,
+grid = k_values_grid )
+
+knn_values_tune
+
+
+```
+
+## 5
+```{r Fit and Model 5}
+
+library(yardstick)
+library(tidymodels)
+
+best_accuracy <- select_best(knn_values_tune,metric = "accuracy")
+
+best_accuracy
+
+```
+The value of 37 gives the best accuracy.
+
+## 6
+```{r Fit and Model 6}
+
+final_knn <-   finalize_model(knn_fit,best_accuracy)
+
+final_knn
+
+```
+
+## 7
+```{r Fit and Model 7}
+
+affairs_knn <- final_knn %>% 
+  fit(affair ~ . , data = check_affairs_train_preprocess)
+
+summary(affairs_knn)
+
+
+
+
+```
+
+## Evaluation
+### 1
+```{r Evaluation 1}
+
+affairs_predict <- predict(
+  affairs_knn,
+  new_data = check_affairs_test_preprocess,
+  type= "class"
+)
+
+head(affairs_predict)
+
+
+logistic_affairs_predict <- predict(
+  
+  object = logistic_fit,
+  new_data = check_affairs_test_preprocess,
+  type= "class"
+)
+
+head(logistic_affairs_predict)
+
+```
+
+## 2
+```{r Evaluation 2}
+
+affairs_predict <- affairs_predict%>%
+bind_cols( select( check_affairs_test_preprocess, affair) )
+
+head(affairs_predict)
+
+logistic_affairs_predict <- logistic_affairs_predict %>%
+bind_cols( select( check_affairs_test_preprocess, affair) )
+
+head(logistic_affairs_predict)
+
+
+
+```
+
+## 3
+```{r Evaluation 3 }
+
+library(yardstick)
+
+affairs_predict %>%
+   conf_mat( truth = affair, estimate = .pred_class )
+
+logistic_affairs_predict %>%
+  conf_mat(truth=affair, estimate = .pred_class)
+
+
+
+```
+## 4
+```{r Evaluation 4 }
+
+library(yardstick)
+
+sensitivity <- affairs_predict %>%
+  sens(truth = affair, estimate = .pred_class)
+
+specificity <- affairs_predict %>%
+  spec(truth = affair, estimate = .pred_class)
+
+sens_spec <- rbind(sensitivity,specificity)
+sens_spec
+
+
+log_sensitivity <- logistic_affairs_predict %>%
+  sens(truth = affair, estimate = .pred_class)
+
+log_specificity <- logistic_affairs_predict %>%
+  spec(truth = affair, estimate = .pred_class)
+
+
+log_sens_spec <- rbind(log_sensitivity, log_specificity)
+log_sens_spec
+
+
+
+```
+
+For KNN Model, 
+Based on the output above, it can be noted that for a participant who answered no, the model accurately predicts that they will have an affair 68.6% of the time. The sensitivity assesses how effectively the model predicts participants who will answer "no" to having an affair. 
+
+For a participant who answered yes, the model accurately predicts that the participant will have an affair 66.7% of the time. The specificity of the model is a measure of how effectively it predicts participants who will answer "yes" to having an affair. 
+
+For Logistic Model,
+Based on the output above, it can be noted that for a participant who answered no, the model accurately predicts that they will have an affair 68.6% of the time. The sensitivity assesses how effectively the model predicts participants who will answer "no" to having an affair. 
+
+For a participant who answered yes, the model accurately predicts that the participant will have an affair 51.1% of the time. The specificity of the model is a measure of how effectively it predicts participants who will answer "yes" to having an affair.
+
+
+
+## 5
+```{r Evaluation 5}
+
+library(ggplot2)
+library(yardstick)
+library(pROC)
+
+affairs_predict <- affairs_predict %>%
+  predict(
+    object = affairs_knn,
+    new_data = check_affairs_test_preprocess,
+    type= "prob"
+  )
+
+affairs_predict <- affairs_predict %>%
+  bind_cols(select(check_affairs_test_preprocess, affair)) %>%
+  mutate(
+    affair = as.factor(ifelse(affair == "yes", 1, 0))
+  )
+
+log_affairs_predict <- predict(
+  object = logistic_fit,
+  new_data = check_affairs_test_preprocess,
+  type = "prob"
+) %>%
+  bind_cols(select(check_affairs_test_preprocess, affair)) %>%
+  mutate(
+    affair = as.factor(ifelse(affair == "yes", 1, 0))
+  )
+
+
+roc_obj1 <- roc(affairs_predict$affair, affairs_predict$.pred_yes)
+roc_obj2 <- roc(log_affairs_predict$affair, log_affairs_predict$.pred_yes)
+
+plot.roc(roc_obj1, percent = TRUE, col = "blue", main = "ROC Curve for Both Models", legacy.axes = TRUE)
+lines.roc(roc_obj2, percent = TRUE, col = "red")
+legend("bottomright", legend = c("KNN", "Logistic"), col = c("blue", "red"), lty = 1)
+
+
+affairs_predict %>%
+  roc_auc(truth = affair, .pred_no)
+
+log_affairs_predict %>%
+  roc_auc(truth = affair, .pred_no)
+
+```
+
+Based on the models above, the Logistic model is fairing better as compared to KNN model. The reasoning behind this is the AUC for the Logistic model is slightly better than the KNN model where Logistic is 0.673 and KNN is 0.672.The area Logistic model is slight further compared to the KNN model.
+
+
